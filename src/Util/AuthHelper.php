@@ -12,6 +12,7 @@ use Auth0\SDK\API\Authentication;
 use Auth0\SDK\API\Helpers\ApiClient;
 use Auth0\SDK\API\Helpers\InformationHeaders;
 
+use Drupal\auth0\Exception\RefreshTokenFailedException;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 
@@ -29,14 +30,67 @@ class AuthHelper {
   const AUTH0_SECRET_ENCODED = 'auth0_secret_base64_encoded';
   const AUTH0_OFFLINE_ACCESS = 'auth0_allow_offline_access';
 
+  /**
+   * The logger.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
+   */
   private $logger;
+
+  /**
+   * The module configuration settings.
+   *
+   * @var \Drupal\Core\Config\ImmutableConfig
+   */
   private $config;
+
+  /**
+   * The Auth0 Domain.
+   *
+   * @var string|null
+   */
   private $domain;
+
+  /**
+   * The Auth0 Custom Domain.
+   *
+   * @var string|null
+   */
   private $customDomain;
+
+  /**
+   * The Auth0 client id.
+   *
+   * @var string|null
+   */
   private $clientId;
+
+  /**
+   * The Auth0 client secret.
+   *
+   * @var string|null
+   */
   private $clientSecret;
+
+  /**
+   * If we should redirect for SSO.
+   *
+   * @var int
+   */
   private $redirectForSso;
+
+  /**
+   * The type of Jwt algorithm.
+   *
+   * @var string
+   */
   private $auth0JwtSignatureAlg;
+
+  /**
+   * If the secret is encoded.
+   *
+   * @var bool
+   */
   private $secretBase64Encoded;
 
   /**
@@ -76,9 +130,9 @@ class AuthHelper {
    * @return array
    *   A user array of named claims from the ID token.
    *
-   * @throws RefreshTokenFailedException
-   * @throws CoreException
-   * @throws InvalidTokenException
+   * @throws \Drupal\auth0\Exception\RefreshTokenFailedException
+   * @throws \Auth0\SDK\Exception\CoreException
+   * @throws \Auth0\SDK\Exception\InvalidTokenException
    */
   public function getUserUsingRefreshToken($refreshToken) {
     global $base_root;
@@ -109,8 +163,8 @@ class AuthHelper {
    * @return mixed
    *   A user array of named claims from the ID token.
    *
-   * @throws CoreException
-   * @throws InvalidTokenException
+   * @throws \Auth0\SDK\Exception\CoreException
+   * @throws \Auth0\SDK\Exception\InvalidTokenException
    * @throws \Exception
    */
   public function validateIdToken($idToken) {

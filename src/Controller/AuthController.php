@@ -16,6 +16,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\user\UserInterface;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -54,8 +55,25 @@ class AuthController extends ControllerBase {
   const AUTH0_SECRET_ENCODED = 'auth0_secret_base64_encoded';
   const AUTH0_OFFLINE_ACCESS = 'auth0_allow_offline_access';
 
+  /**
+   * Event Dispatcher.
+   *
+   * @var \Symfony\Component\EventDispatcher\EventDispatcherInterface
+   */
   protected $eventDispatcher;
+
+  /**
+   * Temp Store.
+   *
+   * @var \Drupal\Core\TempStore\PrivateTempStore
+   */
   protected $tempStore;
+
+  /**
+   * Session Manager.
+   *
+   * @var \Drupal\Core\Session\SessionManagerInterface
+   */
   protected $sessionManager;
 
   /**
@@ -66,7 +84,7 @@ class AuthController extends ControllerBase {
   protected $logger;
 
   /**
-   * The config.
+   * The module configuration settings.
    *
    * @var \Drupal\Core\Config\ImmutableConfig
    */
@@ -274,7 +292,7 @@ class AuthController extends ControllerBase {
       return new TrustedRedirectResponse($this->buildAuthorizeUrl(NULL, $returnTo));
     }
 
-    /* Not doing SSO, so show login page */
+    // Not doing SSO, so show login page.
     return [
       '#theme' => 'auth0_login',
       '#loginCSS' => $this->config->get('auth0_login_css'),
@@ -1080,6 +1098,9 @@ class AuthController extends ControllerBase {
     }
     catch (\UnexpectedValueException $e) {
       $this->messenger()->addError($this->t('Your session has expired.'));
+    }
+    catch (GuzzleException $e) {
+      $this->messenger()->addError($this->t('Sorry, we could not send the email.'));
     }
     catch (\Exception $e) {
       $this->messenger()->addError($this->t('Sorry, we could not send the email.'));
