@@ -16,6 +16,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\user\UserInterface;
+use Firebase\JWT\JWT;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -226,6 +227,9 @@ class AuthController extends ControllerBase {
   ) {
     // Ensure the pages this controller servers never gets cached.
     $page_cache->trigger();
+
+    // Increase leeway due to server timestamp differences.
+    JWT::$leeway = 15;
 
     $this->helper = $auth0_helper;
 
