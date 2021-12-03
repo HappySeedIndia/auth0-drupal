@@ -21,33 +21,6 @@ Before you start, **make sure the admin user has a valid email that you own**. T
 
 There are 2 ways to install this module detailed below. **Please note:** the Auth0 login form will not appear until the module has been configured (see [Getting Started](#getting-started) below).
 
-### Install from Drupal.org manually
-
-1. Go to the [DO Auth0 module page](https://www.drupal.org/project/auth0), scroll to "Downloads," and copy the URL to the latest version's tar.gz file. 
-2. Go to Manage > Extend and click **Install New Module**.
-3. Paste the URL copied into the "Install from a URL" field and click **Install**.
-4. Back on the Modules page, scroll down the the Auth0 module, click the checkbox, then click **Install**.
-
-### Install from Github
-
-Installing from Github requires Composer ([installation instructions](https://getcomposer.org/doc/00-intro.md)).
-
-1. Navigate to your site's modules directory and clone this repo:
-
-```bash
-$ cd PATH/TO/DRUPAL/ROOT/modules
-$ git clone https://github.com/auth0/auth0-drupal.git auth0
-```
-
-2. Move to the newly-created directory and install the Composer dependencies:
-
-```bash
-$ cd auth0
-$ composer install
-```
-
-3. In Manage > Extend, scroll down the the Auth0 module, click the checkbox, then click **Install**
-
 ### Install from Drupal.org with Composer
 
 1. From the root of your Drupal project run:
