@@ -580,7 +580,7 @@ class AuthController extends ControllerBase {
     $this->auth0Logger->notice('process user login');
 
     $event = new Auth0UserPreLoginEvent($userInfo);
-    $this->eventDispatcher->dispatch(Auth0UserPreLoginEvent::NAME, $event);
+    $this->eventDispatcher->dispatch($event, Auth0UserPreLoginEvent::NAME);
 
     try {
       $this->validateUserEmail($userInfo);
@@ -600,7 +600,7 @@ class AuthController extends ControllerBase {
         $this->auth0UpdateFieldsAndRoles($userInfo, $user);
 
         $event = new Auth0UserSigninEvent($user, $userInfo, $refreshToken, $expiresAt);
-        $this->eventDispatcher->dispatch(Auth0UserSigninEvent::NAME, $event);
+        $this->eventDispatcher->dispatch($event, Auth0UserSigninEvent::NAME);
       }
       else {
         $this->auth0Logger->notice('existing Drupal user NOT found');
@@ -610,7 +610,7 @@ class AuthController extends ControllerBase {
         $this->insertAuth0User($userInfo, $user->id());
 
         $event = new Auth0UserSignupEvent($user, $userInfo);
-        $this->eventDispatcher->dispatch(Auth0UserSignupEvent::NAME, $event);
+        $this->eventDispatcher->dispatch($event, Auth0UserSignupEvent::NAME);
       }
     }
     catch (EmailNotSetException $e) {
