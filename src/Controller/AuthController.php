@@ -30,7 +30,6 @@ use Drupal\auth0\Exception\EmailNotVerifiedException;
 use Drupal\Core\PageCache\ResponsePolicyInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\auth0\Util\AuthHelper;
-use Auth0\SDK\JWTVerifier;
 use Auth0\SDK\Auth0;
 use Auth0\SDK\API\Authentication;
 use Auth0\SDK\API\Helpers\State\SessionStateHandler;
@@ -1053,68 +1052,6 @@ class AuthController extends ControllerBase {
     $user->save();
 
     return $user;
-  }
-
-  /**
-   * Send the verification email.
-   *
-   * @param \Symfony\Component\HttpFoundation\Request $request
-   *   The current request.
-   *
-   * @return \Symfony\Component\HttpFoundation\RedirectResponse
-   *   The redirect response.
-   *
-   * @throws \Auth0\SDK\Exception\CoreException
-   *   Exception thrown when validating email.
-   *
-   * @deprecated v8.x-2.4 - the legacy send_verification_email endpoint itself is being deprecated and should no longer be called.
-   */
-  // phpcs:ignore
-  public function verify_email(Request $request) {
-    $idToken = $request->get('idToken');
-
-    // Validate the ID Token.
-    $auth0_domain = 'https://' . $this->domain . '/';
-    $auth0_settings = [];
-    $auth0_settings['authorized_iss'] = [$auth0_domain];
-    $auth0_settings['supported_algs'] = [$this->auth0JwtSignatureAlg];
-    $auth0_settings['valid_audiences'] = [$this->clientId];
-    $auth0_settings['client_secret'] = $this->clientSecret;
-    $auth0_settings['secret_base64_encoded'] = $this->secretBase64Encoded;
-    $jwt_verifier = new JWTVerifier($auth0_settings);
-
-    try {
-      $user = $jwt_verifier->verifyAndDecode($idToken);
-    }
-    catch (\Exception $e) {
-      return $this->failLogin($this->t('There was a problem resending the verification email, sorry for the inconvenience.'),
-        "Failed to verify and decode the JWT ($idToken) for the verify email page: " . $e->getMessage());
-    }
-
-    try {
-      $userId = $user->sub;
-      $url = "https://$this->domain/api/users/$userId/send_verification_email";
-
-      $client = $this->httpClient;
-
-      $client->request('POST', $url, [
-        "headers" => [
-          "Authorization" => "Bearer $idToken",
-        ],
-      ]);
-      $this->messenger()->addStatus($this->t('An Authorization email was sent to your account.'));
-    }
-    catch (\UnexpectedValueException $e) {
-      $this->messenger()->addError($this->t('Your session has expired.'));
-    }
-    catch (GuzzleException $e) {
-      $this->messenger()->addError($this->t('Sorry, we could not send the email.'));
-    }
-    catch (\Exception $e) {
-      $this->messenger()->addError($this->t('Sorry, we could not send the email.'));
-    }
-
-    return new RedirectResponse('/');
   }
 
 }
