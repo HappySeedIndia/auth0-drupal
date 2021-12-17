@@ -186,7 +186,6 @@ class AuthHelper {
     $oldInfoHeaders = ApiClient::getInfoHeadersData();
     if ($oldInfoHeaders) {
       $infoHeaders = InformationHeaders::Extend($oldInfoHeaders);
-      $infoHeaders->setEnvironment('drupal', \Drupal::VERSION);
       $infoHeaders->setPackage('auth0-drupal', AUTH0_MODULE_VERSION);
       ApiClient::setInfoHeadersData($infoHeaders);
     }

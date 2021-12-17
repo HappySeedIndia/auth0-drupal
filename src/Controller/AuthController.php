@@ -16,7 +16,6 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\user\UserInterface;
-use Firebase\JWT\JWT;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -32,7 +31,7 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\auth0\Util\AuthHelper;
 use Auth0\SDK\Auth0;
 use Auth0\SDK\API\Authentication;
-use Auth0\SDK\API\Helpers\State\SessionStateHandler;
+use Auth0\SDK\Helpers\TransientStoreHandler;
 use Auth0\SDK\Store\SessionStore;
 use GuzzleHttp\Client;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -224,11 +223,10 @@ class AuthController extends ControllerBase {
     Connection $database,
     RequestStack $request_stack
   ) {
+    global $base_root;
+
     // Ensure the pages this controller servers never gets cached.
     $page_cache->trigger();
-
-    // Increase leeway due to server timestamp differences.
-    JWT::$leeway = 15;
 
     $this->helper = $auth0_helper;
 
@@ -247,7 +245,14 @@ class AuthController extends ControllerBase {
     $this->secretBase64Encoded = FALSE || $this->config->get(AuthController::AUTH0_SECRET_ENCODED);
     $this->offlineAccess = FALSE || $this->config->get(AuthController::AUTH0_OFFLINE_ACCESS);
     $this->httpClient = $http_client;
-    $this->auth0 = FALSE;
+    $this->auth0 = new Auth0([
+      'domain'        => $this->helper->getAuthDomain(),
+      'client_id'     => $this->clientId,
+      'client_secret' => $this->clientSecret,
+      'redirect_uri'  => "$base_root/auth0/callback",
+      'persist_user' => FALSE,
+      'transient_store' => new SessionStore(),
+    ]);
     $this->database = $database;
     $this->currentRequest = $request_stack->getCurrentRequest();
   }
@@ -292,7 +297,7 @@ class AuthController extends ControllerBase {
 
     // If supporting SSO, redirect to the hosted login page for authorization.
     if ($this->redirectForSso) {
-      return new TrustedRedirectResponse($this->buildAuthorizeUrl(NULL, $returnTo));
+      return new TrustedRedirectResponse($this->buildAuthorizeUrl($returnTo));
     }
 
     // Not doing SSO, so show login page.
@@ -311,7 +316,8 @@ class AuthController extends ControllerBase {
             'configurationBaseUrl' => $this->helper->getTenantCdn($this->config->get('auth0_domain')),
             'showSignup' => $this->config->get('auth0_allow_signup'),
             'callbackURL' => "$base_root/auth0/callback",
-            'state' => $this->getNonce($returnTo),
+            'state' => $this->getState($returnTo),
+            'nonce' => $this->getNonce(),
             'scopes' => AUTH0_DEFAULT_SCOPES,
             'offlineAccess' => $this->offlineAccess,
             'formTitle' => $this->config->get('auth0_form_title'),
@@ -346,15 +352,15 @@ class AuthController extends ControllerBase {
   }
 
   /**
-   * Create a new nonce in session and return it.
+   * Create a new state in session and return it.
    *
    * @param string $returnTo
    *   The return url.
    *
    * @return string
-   *   The nonce string.
+   *   The state string.
    */
-  protected function getNonce($returnTo) {
+  protected function getState($returnTo) {
     // Have to start the session after putting something into the session, or
     // we don't actually start it!
     if (!$this->sessionManager->isStarted() && !isset($_SESSION['auth0_is_session_started'])) {
@@ -362,14 +368,35 @@ class AuthController extends ControllerBase {
       $this->sessionManager->regenerate();
     }
 
-    $sessionStateHandler = new SessionStateHandler(new SessionStore());
+    $transientStoreHandler = new TransientStoreHandler(new SessionStore());
     $states = $this->tempStore->get(AuthController::STATE);
     if (!is_array($states)) {
       $states = [];
     }
-    $nonce = $sessionStateHandler->issue();
-    $states[$nonce] = $returnTo === NULL ? '' : $returnTo;
+    $state = $transientStoreHandler->issue('state');
+    $states[$state] = $returnTo === NULL ? '' : $returnTo;
     $this->tempStore->set(AuthController::STATE, $states);
+
+    return $state;
+  }
+
+  /**
+   * Create a new nonce in session and return it.
+   *
+   * @return string
+   *   The nonce string.
+   */
+  protected function getNonce() {
+    // Have to start the session after putting something into the session, or
+    // we don't actually start it!
+    if (!$this->sessionManager->isStarted() && !isset($_SESSION['auth0_is_session_started'])) {
+      $_SESSION['auth0_is_session_started'] = 'yes';
+      $this->sessionManager->regenerate();
+    }
+
+    $transientStoreHandler = new TransientStoreHandler(new SessionStore());
+
+    $nonce = $transientStoreHandler->issue('nonce');
 
     return $nonce;
   }
@@ -377,35 +404,28 @@ class AuthController extends ControllerBase {
   /**
    * Build the Authorize url.
    *
-   * @param null|string $prompt
-   *   If prompt=none should be passed, false if not.
    * @param string $returnTo
    *   Local path|null if null, use default of /user.
    *
    * @return string
    *   The URL to redirect to for authorization.
    */
-  protected function buildAuthorizeUrl($prompt, $returnTo = NULL) {
+  protected function buildAuthorizeUrl($returnTo = NULL) {
     global $base_root;
 
-    $auth0Api = new Authentication($this->helper->getAuthDomain(), $this->clientId);
-
-    $response_type = 'code';
     $redirect_uri = "$base_root/auth0/callback";
-    $connection = NULL;
-    $state = $this->getNonce($returnTo);
-    $additional_params = [];
-    $additional_params['scope'] = AUTH0_DEFAULT_SCOPES;
+
+    $params = [
+      'scope' => AUTH0_DEFAULT_SCOPES,
+      'response_type' => 'code',
+      'redirect_uri' => $redirect_uri,
+    ];
 
     if ($this->offlineAccess) {
-      $additional_params['scope'] .= ' offline_access';
+      $params['scope'] .= ' offline_access';
     }
 
-    if ($prompt) {
-      $additional_params['prompt'] = $prompt;
-    }
-
-    return $auth0Api->get_authorize_link($response_type, $redirect_uri, $connection, $state, $additional_params);
+    return $this->auth0->getLoginUrl();
   }
 
   /**
@@ -432,7 +452,7 @@ class AuthController extends ControllerBase {
       'consent_required',
     ];
     if ($error_code && in_array($error_code, $redirect_errors)) {
-      return new TrustedRedirectResponse($this->buildAuthorizeUrl(FALSE, $returnTo));
+      return new TrustedRedirectResponse($this->buildAuthorizeUrl($returnTo));
     }
     elseif ($error_code) {
       $error_desc = $request->query->get('error_description', $request->request->get('error_description', $error_code));
@@ -463,15 +483,6 @@ class AuthController extends ControllerBase {
       return $response;
     }
 
-    // Set store to null so that the store is set to SessionStore.
-    $this->auth0 = new Auth0([
-      'domain'        => $this->helper->getAuthDomain(),
-      'client_id'     => $this->clientId,
-      'client_secret' => $this->clientSecret,
-      'redirect_uri'  => "$base_root/auth0/callback",
-      'persist_user' => FALSE,
-    ]);
-
     $refreshToken = NULL;
 
     // Exchange the code for the tokens (happens behind the scenes in the SDK).
@@ -497,7 +508,7 @@ class AuthController extends ControllerBase {
     }
 
     try {
-      $user = $this->helper->validateIdToken($idToken);
+      $user = $this->auth0->decodeIdToken($idToken);
     }
     catch (\Exception $e) {
       return $this->failLogin($problem_logging_in_msg, $this->t('Failed to validate JWT: @exception', ['@exception' => $e->getMessage()]));
@@ -520,13 +531,13 @@ class AuthController extends ControllerBase {
         $userInfo['user_id'] = $userInfo['sub'];
       }
 
-      if ($userInfo['sub'] != $user->sub) {
+      if ($userInfo['sub'] != $user['sub']) {
         return $this->failLogin($problem_logging_in_msg, $this->t('Failed to verify JWT sub'));
       }
 
       $this->auth0Logger->notice('Good Login');
 
-      return $this->processUserLogin($request, $userInfo, $idToken, $refreshToken, $user->exp, $returnTo);
+      return $this->processUserLogin($request, $userInfo, $idToken, $refreshToken, $user['exp'], $returnTo);
     }
     else {
       return $this->failLogin($problem_logging_in_msg, 'No userinfo found');
