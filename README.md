@@ -3,7 +3,7 @@ Drupal Module for Auth0
 
 This plugin replaces standard Drupal login forms with one powered by Auth0 that enables social, passwordless, and enterprise connection login as well as additional security, multifactor auth, and user statistics.
 
-Drupal 7 is supported only on v1. If you want to contribute to the codebase, please push your PRs against the `1.x.x` branch. Note that this branch is not regularly maintained.
+PHP 5.4 is supported only on v2. If you want to contribute to the codebase, please push your PRs against the `2.x.x` branch. Note that this branch is not regularly maintained.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ Drupal 7 is supported only on v1. If you want to contribute to the codebase, ple
 
 Before you start, **make sure the admin user has a valid email that you own**. This module delegates the site authentication to Auth0. That means that you won't be using the Drupal database to authenticate users (user records will still be created) and the default login box will not be shown. 
 
-There are 2 ways to install this module detailed below. **Please note:** the Auth0 login form will not appear until the module has been configured (see [Getting Started](#getting-started) below).
+**Please note:** the Auth0 login form will not appear until the module has been configured (see [Getting Started](#getting-started) below).
 
 ### Install from Drupal.org with Composer
 
