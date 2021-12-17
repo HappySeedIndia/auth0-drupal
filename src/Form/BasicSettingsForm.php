@@ -82,7 +82,6 @@ class BasicSettingsForm extends ConfigFormBase {
       '#type' => 'select',
       '#title' => $this->t('JsonWebToken Signature Algorithm'),
       '#options' => [
-        'HS256' => $this->t('HS256'),
         'RS256' => $this->t('RS256'),
       ],
       '#default_value' => $config->get(AuthHelper::AUTH0_JWT_SIGNING_ALGORITHM) ?: AUTH0_DEFAULT_SIGNING_ALGORITHM,
