@@ -112,10 +112,7 @@ class AuthHelper {
     $this->clientId = $this->config->get(AuthHelper::AUTH0_CLIENT_ID);
     $this->clientSecret = $this->config->get(AuthHelper::AUTH0_CLIENT_SECRET);
     $this->redirectForSso = $this->config->get(AuthHelper::AUTH0_REDIRECT_FOR_SSO);
-    $this->auth0JwtSignatureAlg = $this->config->get(
-      AuthHelper::AUTH0_JWT_SIGNING_ALGORITHM,
-      AUTH0_DEFAULT_SIGNING_ALGORITHM
-    );
+    $this->auth0JwtSignatureAlg = $this->config->get(AuthHelper::AUTH0_JWT_SIGNING_ALGORITHM) ?: AUTH0_DEFAULT_SIGNING_ALGORITHM;
     $this->secretBase64Encoded = FALSE || $this->config->get(AuthHelper::AUTH0_SECRET_ENCODED);
 
     self::setTelemetry();
