@@ -39,7 +39,7 @@ class Auth0UserSigninEvent extends Event {
   /**
    * The timestamp when the token expires.
    *
-   * @var timestamp
+   * @var string
    */
   protected $expiresAt;
 
@@ -95,8 +95,8 @@ class Auth0UserSigninEvent extends Event {
   /**
    * Get the time when the ID token expires.
    *
-   * @return timestamp
-   *   The unix time when token expires.
+   * @return string
+   *   The unix timestamp when token expires.
    */
   public function getExpiresAt() {
     return $this->expiresAt;
